@@ -32,3 +32,51 @@ body {
 ::selection {
   background: rgba(22, 93, 255, 0.2);
 }
+
+/* ---------- 受 useMotionAllowed 控制的动效 ----------
+   仅在元素可见、页面可见且未开启“减少动态效果”时，元素才会带这些 class */
+@keyframes cs-kenburns {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); }
+}
+.cs-kenburns-img {
+  animation: cs-kenburns 12s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes cs-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.cs-card-in {
+  animation: cs-card-in 0.5s ease-out both;
+}
+
+@keyframes cs-pulse-cover {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.cs-pulse-cover {
+  animation: cs-pulse-cover 1.4s ease-in-out infinite;
+}
+
+.cs-shimmer {
+  background: linear-gradient(100deg, #f1f5f9 40%, #e2e8f0 50%, #f1f5f9 60%);
+  background-size: 200% 100%;
+  animation: cs-shimmer 1.4s linear infinite;
+}
+@keyframes cs-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

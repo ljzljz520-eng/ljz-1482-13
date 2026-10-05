@@ -1,13 +1,83 @@
 version: "3.9"
+
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: charstudio-db
+    environment:
+      POSTGRES_USER: charapp
+      POSTGRES_PASSWORD: charapp
+      POSTGRES_DB: charstudio
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U charapp -d charstudio"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - studio-net
+
+  api:
+    build:
+      context: ./backend
+    container_name: charstudio-api
+    environment:
+      DATABASE_URL: postgresql+psycopg2://charapp:charapp@db:5432/charstudio
+      JWT_SECRET: charstudio-prod-secret-2026
+      MEDIA_DIR: /data/media
+      COVER_JOB_DELAY_SECONDS: "4"
+      ENABLE_FAILURE_INJECTION: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media:/data/media
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - studio-net
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: charstudio-worker
+    environment:
+      DATABASE_URL: postgresql+psycopg2://charapp:charapp@db:5432/charstudio
+      JWT_SECRET: charstudio-prod-secret-2026
+      MEDIA_DIR: /data/media
+      COVER_JOB_DELAY_SECONDS: "4"
+      ENABLE_FAILURE_INJECTION: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - media:/data/media
+    restart: unless-stopped
+    networks:
+      - studio-net
+
   frontend:
     build: ./frontend
-    container_name: park-frontend
+    container_name: charstudio-frontend
+    depends_on:
+      - api
     ports:
       - "3000:80"
     restart: unless-stopped
     networks:
-      - park-net
+      - studio-net
+
+volumes:
+  pgdata:
+  media:
+
 networks:
-  park-net:
+  studio-net:
     driver: bridge

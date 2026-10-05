@@ -1,94 +1,137 @@
-import { Link, useLocation } from "react-router-dom";
-import { ReactNode, useMemo } from "react";
-import { useUIStore } from "@/store/uiStore";
+import { ReactNode, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
+import { useAuth } from "../store/auth";
 
 const navItems = [
-  { path: "/", label: "公园总览" },
-  { path: "/audiovisual", label: "视听体验" },
-  { path: "/timeline", label: "时间轴" }
+  { path: "/", label: "角色设计", icon: "🎭" },
+  { path: "/scripts", label: "脚本场次", icon: "📜" },
+  { path: "/review", label: "复核工作台", icon: "🛡️" },
+  { path: "/assets", label: "图片与清理", icon: "🖼️" },
+  { path: "/exports", label: "导出快照", icon: "📦" },
 ];
 
-const Layout = ({ children }: { children: ReactNode }) => {
-  const { pathname } = useLocation();
-  const { isMenuOpen, toggleMenu } = useUIStore();
+const roleLabel: Record<string, string> = {
+  admin: "管理员",
+  editor: "编辑",
+  viewer: "访客",
+};
 
-  const activeMatch = useMemo(() => pathname, [pathname]);
+const Layout = ({ children }: { children: ReactNode }) => {
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-30 backdrop-blur bg-white/80 border-b border-slate-200">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary to-accent shadow-card flex items-center justify-center text-white font-bold">
-              云溪
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <Link to="/" className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-base font-bold text-white shadow-card">
+              角
             </span>
             <div>
-              <p className="text-sm text-slate-500">城市微度假</p>
-              <h1 className="text-lg font-semibold text-slate-900">云溪公园</h1>
+              <p className="text-xs text-slate-400">Character Studio</p>
+              <h1 className="text-base font-semibold leading-tight text-slate-900">
+                角色工作室
+              </h1>
             </div>
           </Link>
-          <nav className="hidden md:flex items-center gap-2">
+
+          <nav className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
-              <Link
+              <NavLink
                 key={item.path}
                 to={item.path}
-                className={clsx(
-                  "px-3 py-2 rounded-full text-sm font-medium transition hover:bg-primary/10",
-                  activeMatch === item.path
-                    ? "bg-primary/10 text-primary"
-                    : "text-slate-600"
-                )}
+                end={item.path === "/"}
+                className={({ isActive }) =>
+                  clsx(
+                    "rounded-full px-3.5 py-2 text-sm font-medium transition",
+                    isActive
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )
+                }
               >
+                <span className="mr-1">{item.icon}</span>
                 {item.label}
-              </Link>
+              </NavLink>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2">
+            {user ? (
+              <div className="hidden items-center gap-2 sm:flex">
+                <div className="text-right">
+                  <p className="text-sm font-medium leading-tight text-slate-800">
+                    {user.display_name}
+                  </p>
+                  <p className="text-xs text-slate-400">{roleLabel[user.role]}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
+                  className="rounded-lg px-2.5 py-1.5 text-sm text-slate-500 transition hover:bg-slate-100"
+                >
+                  退出
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                state={{ from: location.pathname }}
+                className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700"
+              >
+                登录
+              </Link>
+            )}
             <button
-              onClick={toggleMenu}
-              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition"
-              aria-label="Toggle menu"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 transition hover:border-blue-400 hover:text-blue-600 md:hidden"
+              aria-label="切换菜单"
             >
-              <span className="block h-0.5 w-5 bg-current relative">
-                <span className="block absolute -top-1.5 h-0.5 w-5 bg-current" />
-                <span className="block absolute top-1.5 h-0.5 w-5 bg-current" />
+              <span className="relative block h-0.5 w-5 bg-current">
+                <span className="absolute -top-1.5 block h-0.5 w-5 bg-current" />
+                <span className="absolute top-1.5 block h-0.5 w-5 bg-current" />
               </span>
             </button>
           </div>
         </div>
-        {isMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white/95">
-            <div className="max-w-6xl mx-auto px-4 py-3 grid grid-cols-2 gap-2">
+
+        {menuOpen && (
+          <div className="border-t border-slate-200 bg-white/95 md:hidden">
+            <div className="mx-auto grid max-w-7xl grid-cols-2 gap-2 px-4 py-3">
               {navItems.map((item) => (
-                <Link
+                <NavLink
                   key={item.path}
                   to={item.path}
-                  className={clsx(
-                    "px-3 py-2 rounded-xl text-sm font-medium transition hover:bg-primary/10",
-                    activeMatch === item.path
-                      ? "bg-primary/10 text-primary"
-                      : "text-slate-600"
-                  )}
-                  onClick={toggleMenu}
+                  end={item.path === "/"}
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    clsx(
+                      "rounded-xl px-3 py-2 text-sm font-medium transition",
+                      isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"
+                    )
+                  }
                 >
+                  <span className="mr-1">{item.icon}</span>
                   {item.label}
-                </Link>
+                </NavLink>
               ))}
             </div>
           </div>
         )}
       </header>
-      <main className="flex-1">
-        {children}
-      </main>
-      <footer className="border-t border-slate-200 bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-slate-500">© 2026 云溪公园 · 自然与创作共生</p>
-          <div className="flex gap-3 text-sm text-slate-500">
-            <span>开放时间：06:00 - 22:00</span>
-            <span>服务热线：400-123-4567</span>
-          </div>
+
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+
+      <footer className="border-t border-slate-200 bg-white/70">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-slate-400 sm:flex-row">
+          <span>角色工作室 · 不可变版本 / 显式引用 / 安全退役</span>
+          <span>权限完全由服务端校验 · {new Date().getFullYear()}</span>
         </div>
       </footer>
     </div>
