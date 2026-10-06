@@ -32,3 +32,38 @@ body {
 ::selection {
   background: rgba(22, 93, 255, 0.2);
 }
+
+@keyframes cover-sweep {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -80% 0;
+  }
+}
+
+.animate-cover-sweep {
+  animation: cover-sweep 3.6s ease-in-out infinite alternate;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-cover-sweep,
+  .animate-fade-up {
+    animation: none !important;
+  }
+}

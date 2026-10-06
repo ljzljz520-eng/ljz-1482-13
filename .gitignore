@@ -9,3 +9,13 @@ backend/dist
 **/.DS_Store
 **/coverage
 **/.turbo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+backend/.pytest_cache/
+backend/test_workbench.db
+*.db
+.env
+data/

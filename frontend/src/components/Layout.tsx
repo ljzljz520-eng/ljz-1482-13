@@ -1,95 +1,146 @@
-import { Link, useLocation } from "react-router-dom";
-import { ReactNode, useMemo } from "react";
-import { useUIStore } from "@/store/uiStore";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { ReactNode, useEffect } from "react";
 import clsx from "clsx";
+import { useAuthStore } from "@/store/authStore";
+import { usePrefsStore } from "@/store/prefsStore";
+import { reviewApi } from "@/api";
+import { useState } from "react";
 
 const navItems = [
-  { path: "/", label: "公园总览" },
-  { path: "/audiovisual", label: "视听体验" },
-  { path: "/timeline", label: "时间轴" }
+  { path: "/characters", label: "角色设计" },
+  { path: "/scripts", label: "脚本场次" },
+  { path: "/reviews", label: "待复核" },
+  { path: "/images", label: "参考图库" },
 ];
 
-const Layout = ({ children }: { children: ReactNode }) => {
-  const { pathname } = useLocation();
-  const { isMenuOpen, toggleMenu } = useUIStore();
+const roleLabel: Record<string, string> = {
+  admin: "管理员",
+  editor: "编剧",
+  viewer: "观众",
+};
 
-  const activeMatch = useMemo(() => pathname, [pathname]);
+const Layout = ({ children }: { children: ReactNode }) => {
+  const { user, hydrated, hydrate, logout } = useAuthStore();
+  const { motionEnabled, toggleMotion } = usePrefsStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [openCount, setOpenCount] = useState<number | null>(null);
+  const navItemsVisible = user?.role === "admin"
+    ? [...navItems, { path: "/admin", label: "清理" }]
+    : navItems;
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate, location.pathname]);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const load = () =>
+      reviewApi
+        .list("open")
+        .then((items) => alive && setOpenCount(items.length))
+        .catch(() => undefined);
+    load();
+    const timer = setInterval(load, 8000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [user, location.pathname]);
+
+  if (!hydrated) return null;
+  if (!user) {
+    navigate("/login", { replace: true });
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-30 backdrop-blur bg-white/80 border-b border-slate-200">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary to-accent shadow-card flex items-center justify-center text-white font-bold">
-              云溪
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <Link to="/characters" className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-base font-bold text-white shadow-card">
+              角
             </span>
             <div>
-              <p className="text-sm text-slate-500">城市微度假</p>
-              <h1 className="text-lg font-semibold text-slate-900">云溪公园</h1>
+              <p className="text-[11px] text-slate-400">Character Workbench</p>
+              <h1 className="text-base font-semibold leading-tight text-slate-900">
+                角色设计工作台
+              </h1>
             </div>
           </Link>
-          <nav className="hidden md:flex items-center gap-2">
-            {navItems.map((item) => (
-              <Link
+          <nav className="hidden items-center gap-1 md:flex">
+            {navItemsVisible.map((item) => (
+              <NavLink
                 key={item.path}
                 to={item.path}
-                className={clsx(
-                  "px-3 py-2 rounded-full text-sm font-medium transition hover:bg-primary/10",
-                  activeMatch === item.path
-                    ? "bg-primary/10 text-primary"
-                    : "text-slate-600"
-                )}
+                className={({ isActive }) =>
+                  clsx(
+                    "relative rounded-full px-3.5 py-2 text-sm font-medium transition",
+                    isActive ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-100",
+                  )
+                }
               >
                 {item.label}
-              </Link>
+                {item.path === "/reviews" && openCount ? (
+                  <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {openCount > 99 ? "99+" : openCount}
+                  </span>
+                ) : null}
+              </NavLink>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
-              onClick={toggleMenu}
-              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition"
-              aria-label="Toggle menu"
+              onClick={toggleMotion}
+              title={motionEnabled ? "动态效果：开（点击关闭）" : "动态效果：关"}
+              className={clsx(
+                "hidden h-9 w-9 items-center justify-center rounded-full ring-1 transition sm:inline-flex",
+                motionEnabled
+                  ? "bg-primary/5 text-primary ring-primary/30"
+                  : "bg-slate-50 text-slate-400 ring-slate-200",
+              )}
             >
-              <span className="block h-0.5 w-5 bg-current relative">
-                <span className="block absolute -top-1.5 h-0.5 w-5 bg-current" />
-                <span className="block absolute top-1.5 h-0.5 w-5 bg-current" />
-              </span>
+              {motionEnabled ? "✨" : "⏸"}
+            </button>
+            <div className="hidden text-right sm:block">
+              <p className="text-xs font-semibold text-slate-700">{user.display_name}</p>
+              <p className="text-[11px] text-slate-400">{roleLabel[user.role] ?? user.role}</p>
+            </div>
+            <button
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+              className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-100"
+            >
+              退出
             </button>
           </div>
         </div>
-        {isMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white/95">
-            <div className="max-w-6xl mx-auto px-4 py-3 grid grid-cols-2 gap-2">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={clsx(
-                    "px-3 py-2 rounded-xl text-sm font-medium transition hover:bg-primary/10",
-                    activeMatch === item.path
-                      ? "bg-primary/10 text-primary"
-                      : "text-slate-600"
-                  )}
-                  onClick={toggleMenu}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
+        <nav className="flex gap-1 overflow-x-auto px-4 pb-2 md:hidden">
+          {navItemsVisible.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                clsx(
+                  "whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition",
+                  isActive ? "bg-primary/10 text-primary" : "text-slate-600",
+                )
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
       </header>
-      <main className="flex-1">
-        {children}
-      </main>
-      <footer className="border-t border-slate-200 bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-slate-500">© 2026 云溪公园 · 自然与创作共生</p>
-          <div className="flex gap-3 text-sm text-slate-500">
-            <span>开放时间：06:00 - 22:00</span>
-            <span>服务热线：400-123-4567</span>
-          </div>
-        </div>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+      <footer className="border-t border-slate-200 bg-white/70 py-4">
+        <p className="text-center text-xs text-slate-400">
+          角色版本 · 引用依赖 · 异步封面 · 退役审计 · 服务端鉴权
+        </p>
       </footer>
     </div>
   );

@@ -1,13 +1,59 @@
 version: "3.9"
+
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: workbench-db
+    environment:
+      POSTGRES_USER: workbench
+      POSTGRES_PASSWORD: workbench
+      POSTGRES_DB: workbench
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workbench"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - workbench-net
+
+  backend:
+    build: ./backend
+    container_name: workbench-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://workbench:workbench@db:5432/workbench
+      MEDIA_ROOT: /data/media
+      TOKEN_SECRET: workbench-demo-secret
+      ENABLE_WORKER: "true"
+      WORKER_INTERVAL_SECONDS: "3"
+      CORS_ORIGINS: "*"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media:/data/media
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - workbench-net
+
   frontend:
     build: ./frontend
-    container_name: park-frontend
+    container_name: workbench-frontend
+    depends_on:
+      - backend
     ports:
       - "3000:80"
     restart: unless-stopped
     networks:
-      - park-net
+      - workbench-net
+
+volumes:
+  pgdata:
+  media:
+
 networks:
-  park-net:
+  workbench-net:
     driver: bridge
